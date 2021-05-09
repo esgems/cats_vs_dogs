@@ -1,15 +1,14 @@
 import os
 
+import tensorflow as tf
 import tensorflow_cloud as tfc
 
 from src.dataset_manager.TFRecordLoader import TFRecordLoader
 from src.models.ModelCore import ModelCore
 from src.metrics.Metrics import Metrics
 
-MODE = 0 # 0 - train, 1 - accuracytest 2- test image
-
-#model
-MODEL_TYPE = 1
+MODE = 0 		# 0 - train, 1 - accuracytest 2- test image
+MODEL_TYPE = 2 	# 0 - vgg, 1 - resnet, 2 - custom
 
 if MODEL_TYPE == 0:
 	MODEL_NAME = "modelVgg"
@@ -25,16 +24,16 @@ LEARNING_RATE = 0.0001
 
 loader = TFRecordLoader(IM_SIZE)
 
-LOCAL_DATA_PATH = "D:/Projects/test_rab_2_local_data"
+LOCAL_DATA_PATH = "D:/Projects/cats_vs_dogs_data"
 LOCAL_MODEL_PATH = os.path.join(LOCAL_DATA_PATH, "saved_models", MODEL_NAME, MODEL_NAME)
 
 if MODE == 0:
 	GCP_BUCKET = "projectcatsbucket"
 
 	BATCH_SZE = 16
-	TRAIN_EPOCHS = 60
-	TRAIN_EPOCHS_STEPS = 50
-	VAL_EPOCHS = 10
+	TRAIN_EPOCHS = 80
+	TRAIN_EPOCHS_STEPS = 80
+	VAL_EPOCHS = 15
 	SAVE_FREQ = 20
 	
 	data_directory = os.path.join(LOCAL_DATA_PATH, "data/train.tfrecords")
@@ -76,18 +75,13 @@ elif not tfc.remote():
 		
 	else:
 		
-		import cv2
-		import tensorflow as tf
+		from src.dataset_manager.LocalDataLoader import LocalDataLoader
 		from src.viz.Viz import Viz
 
-		viz = Viz()
+		IMAGES_FOLDER = os.path.join(LOCAL_DATA_PATH, "test_images")
 
-		folder = "D:\\Projects\\test_rab_2_local_data\\test_images\\"
-
-		for filename in os.listdir(folder):
-			image = cv2.imread(os.path.join(folder,filename))
-			image = tf.image.resize(image, IM_SIZE[:2])
-			image = image / 255.0
+		for filename in os.listdir(IMAGES_FOLDER):
+			image = LocalDataLoader.load_image(os.path.join(IMAGES_FOLDER, filename), IM_SIZE[:2])
 			image = tf.expand_dims(image, axis=0)
 
 			pre = model.predict(image)
@@ -96,9 +90,8 @@ elif not tfc.remote():
 			predBbxs = predBbxs * tf.cast(IM_SIZE[0], tf.float32)
 			predBbxs = predBbxs.numpy().astype(int)
 
-			print(predLabels[0].numpy())
-			
-			viz.show1(image[0].numpy(), predBbxs[0])
+			name = "cat" if predLabels[0].numpy()[0] < 0.5  else "dog"
+			Viz.show1(image[0].numpy(), predBbxs[0], name)
 
 else:
 	print("Remote testing is not available.")
