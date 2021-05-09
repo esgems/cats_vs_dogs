@@ -1,0 +1,1 @@
+mIoU: 48%, , classification accuracy: 92%, inf. time: 0.1498345047235489, train: 2388, valid: 597 
